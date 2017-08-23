@@ -2,10 +2,12 @@ class Auth::SessionController < ApplicationController
 	skip_before_filter :verify_authenticity_token
 
   def callback
+		p "Callback"
     begin
       auth = request.env['omniauth.auth']
-      extra = request.env['omniauth.params']['returnURL']
-
+      extra = request.env['omniauth.params']
+			p auth
+			p extra
       #From SDO Tools
       user = User.find_or_create_by(:email => auth['extra']['email'], :uid => auth['uid'])
       user.uid = auth['uid']
