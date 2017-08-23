@@ -5,9 +5,8 @@ class Auth::SessionController < ApplicationController
 		p "Callback"
     begin
       auth = request.env['omniauth.auth']
-      extra = request.env['omniauth.params']
-			p auth
-			p extra
+      extra = request.env['omniauth.params']['returnURL']
+
       #From SDO Tools
       user = User.find_or_create_by(:email => auth['extra']['email'], :uid => auth['uid'])
       user.uid = auth['uid']
