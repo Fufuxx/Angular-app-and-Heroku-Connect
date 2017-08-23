@@ -16,7 +16,7 @@ export class AppComponent{
     console.log(context);
     let self = this;
 
-    this.App.cable = ActionCable.createConsumer("ws://localhost:3000/cable");
+    this.App.cable = ActionCable.createConsumer(context.socket_url);
     this.App.MyChannel = this.App.cable.subscriptions.create({channel: "MyChannel", context: {} }, {
       // ActionCable callbacks
       connected: function() {

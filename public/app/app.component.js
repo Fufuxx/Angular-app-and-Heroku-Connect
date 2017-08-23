@@ -23,7 +23,7 @@ System.register(["@angular/core"], function (exports_1, context_1) {
                     this.App = {};
                     console.log(context);
                     var self = this;
-                    this.App.cable = ActionCable.createConsumer("ws://localhost:3000/cable");
+                    this.App.cable = ActionCable.createConsumer(context.socket_url);
                     this.App.MyChannel = this.App.cable.subscriptions.create({ channel: "MyChannel", context: {} }, {
                         // ActionCable callbacks
                         connected: function () {
