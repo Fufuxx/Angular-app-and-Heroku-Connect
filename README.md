@@ -1,445 +1,223 @@
-###### Where we left off
+# Heroku, Heroku Connect and the joy of Production systems
 
-This is the 3rd of a series of tutorials on getting started with Angular and Ruby on Rails. Here are the 2 first tutorials if you missed it ! :)
-1. First Part: [Get Started with rails 5 & Angular](https://q-labs.herokuapp.com/2016/10/28/get-started-angular2-rails5/)
-2. Second part: [Plugging Angular to Rails ActionCable - WebSockets](https://q-labs.herokuapp.com/2017/04/10/angular-and-actioncable-observable-pattern-and-websocket/)
+###### What is heroku and heroku connect ?
 
-If you want to jump straight away to this one, here is the [github repo of the last part](https://github.com/Fufuxx/ActionCable-Angular) so you can just start from here.
+I like to see Heroku as a super host for your web applications.
+You focus on building the app without worrying about the infrastructure behind it, you push it to heroku and you app is ready and accessible on the web. [More infos](https://www.heroku.com/what)
 
-###### What we are going to do
+> Heroku is a cloud platform that lets companies build, deliver, monitor and scale apps — we're the fastest way to go from idea to URL, bypassing all those infrastructure headaches.
 
-Basically we are going to set up salesforce authentication on the Angular app so by the end of this tutorial, you'll be able to access and modify data of your salesforce Instance from your angular app.
+Heroku connect is an add-on to Heroku. It synchronize any salesforce Org data with your Heroku app postgresql database. So if you create a record in your postgresql Heroku database through your app, Heroku connect will automatically create the record in Salesforce for you and vice-versa. [More infos](https://www.heroku.com/connect)
 
-If you didn't read it yet, I would advise looking into the great [User Authentication](https://q-labs.herokuapp.com/2017/01/30/user-authentication-in-sdo-tools-for-dummies/) article wrote by **Arunima Dasgupta**, as we are basically going to implement the most part of it.
+###### What are we going to do ?
 
-###### Set up the needed libraries
+Remember that serie of tutorial on Angular and Ruby on Rails ? Well, we going to use it as a base app to push to Heroku, add on a database to it and set up heroku connect to showcase how this all thing work together. Pretty cool hey ?
 
-So we are going to need 3 libraries:
-1. Devise
-2. Omniauth
-3. Omniauth Salesforce
+Before starting, we gonna need few stuff:
 
-So let's go ahead and make sure we have those in our gemfile.
+1. The app (last tutorial repro) available [here](https://github.com/Fufuxx/Salesforce-Data-Angular). If you in a mood to go through all the previous tuto first to catch up, it's over [here](https://q-labs.herokuapp.com/2017/05/10/accessing-salesforce-from-your-angular-app/).
+
+2. Few softwares. [Postgres](https://www.postgresql.org/download/) and [Postico](https://eggerapps.at/postico/) (Although Postico is only available for Mac).
+
+
+###### Start the application
+
+Open up your terminal, go to the folder where you want to application to be and run ``` git clone https://github.com/Fufuxx/Salesforce-Data-Angular.git ```
+
+Then go to the new app directory ``` cd Salesforce-Data-Angular ``` and **Very Important** run ``` git remote rm origin ``` (So you don't end up changing my repro app :p)
+
+From here run ``` bundle install ``` and then ``` rake db:migrate ```. Then run ``` heroku local ``` to start up the app.
+
+Open up an anonymous window and go to ``` localhost:3000 ```. You should be redirected to salesforce login. Log in to one of your SDO et voilà ! You should be in the app. If you click the doStuff button you should see 10 Accounts from your Org (which was the end of the last Angular and Ruby on Rails tuto).
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_01_at_2_19_16_PM-1501593585223.png)
+
+###### Setting up Postgresql instead of SQlite
+
+First, we need the pg gem in order for rails to work with postgresql. So go to your gem file (in root directory). and add this ``` gem 'pg' ``` remove the line ``` gem 'sqlite3' ``` as we won't use sqlite anymore.
+
+Now, go to config/database.yml in your app directory, replace the entire file with this
 
 ```
-gem 'omniauth'
-gem 'omniauth-salesforce'
-gem 'devise'
-gem 'restforce'
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: test-heroku
+
+test:
+  <<: *default
+  database: test-heroku
+
+production:
+  #Set Prod Database here
+  <<: *default
+  # database:
+  # username:
+  # password:
+  # host:
+  # timeout:
+
 ```
+As you can see, we need a test-heroku database here for our development. Let's set it up on Postico.
 
-I have added the library 'restforce' as we will be using it to access nd modify Salesforce data once authenticated.
-[More infos on Restforce](https://github.com/ejholmes/restforce)
+Open up Postico and if you do not have localhost set up yet, follow the image informations below.
 
-run ```bundle install``` from your terminal window in your app directory.
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_9_40_32_AM-1503477655438.png)
 
-###### Set Up Connected app
+Once you have done that, simply click connect. On the top menu bar click on localhost. You should see all the Databases there. Click the '+ Database' on the bottom of the app screen and type test-heroku.
 
-We are going to need a Client Id and Client Secret in order to auth to salesforce. To do so, we need to first create a connected app.
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_9_43_06_AM-1503477808975.png)
 
-In your Org go to Setup -> Create and Apps. Scroll down to connected app and create a new connected app.
-Call it the name you want. I chose Salesforce auth.
+Done !
 
-Tick the enable OAuth Settings and enter ```http://localhost:3000/auth/salesforce/callback``` as callback url.
-Finally give full access and save.
+Now let's try the app.
+Go to your root directory using terminal and type ```rake db:migrate```
+This will run the rails migration for you, creating corresponding tables in the test db.
 
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/May/Screen_Shot_2017_05_09_at_11_45_47_AM-1494326773533.png)
+Then run ```heroku local``` and go to your browser -> ```localhost:3000``` to test the app.
 
-You now should have access to client_id and client_secret.
-Let's set them up as env variable in our project.
+Your app should run normally and click the 'doStuff' should display a list of Accounts
 
-Go to your app directory and create a new file called .env (if you don't have one already).
-Like so (of course replace ```CLIENT_ID``` and ```CLIENT_SECRET`` values with the one from your connected app):
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/May/Screen_Shot_2017_05_09_at_10_48_44_AM-1494323348095.png)
+###### Setting up Heroku Connect
 
-This will set them up as Environment variable for our project.
+Log in to [heroku](www.heroku.com). If you do not have an account, simply create one by registering.
 
-###### Set Up Devise
+Create a new app
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_9_51_52_AM-1503478354458.png)
 
-Remember the devise library we set up at the start ? It's time to set it up properly.
-It will easily set up a user sign in process for us.
+Give it a name (should not be already taken)
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_9_52_58_AM-1503478397032.png)
 
-Go to your terminal, to the root of the application an run: ```rails generate devise:install```
+> you are now a proud owner of an Heroku application
 
-In you app, go to config/environments/development.rb and add this line at the end:
+Go to Overview on the top menu. We are going to set some add-ons for this app. First will be a Postgresql database and second will be our Heroku Connect.
+
+Click on configure add-ons. Search for Postgres and Heroku connect and add them up (choose free editions, perfect for testing).
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_9_55_20_AM-1503478562720.png)
+
+Now let's configure Heroku connect.
+Go back to Overview and click on the Heroku Connect add-on.
+
+Follow the setup process. You will be prompted to log in to salesforce. Use one of your demo org.
+This will be the Org that will synch up with Heroku connect. Leave the Schema to salesforce.
+
+Once done, click on Create Mapping. Select Account on the object list and check fields AccountNumber, Name, Industry and BillingCity.
+
+This will synch the heroku app database with your Organization data (for Account only as it's the only mapping we have).
+
+###### On the rails side
+
+First, let's set up the Model for Account.
+Go to ```app/models``` and create a new file ```account.rb```
+
+Set it up  as follow:
 ```
-config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
-```
-
-That's it, don't worry about the other instructions on the screen, we won't need it here.
-
-In the terminal again run:
-```
-rails generate devise User
-```
-
-1. In the app, go to db/migrate and open the file inside. We need change this line:```add_index :users, :email, unique: true ```
-into this: ```add_index :users, :email ```
-
-And add this one: ``` t.string :uid ```
-
-> We do this because the same email user can exist in different org (SDO) so unicity is not only on email.
-
-2. In app/models/user.rb remove ```:validatable```
-
-> Validatable would make use of encypted password for login. In our case, we are going to use Omniauth to login through salesforce so no need for this.
-
-We need a model for Organization as well.
-In the terminal again run:
-```
-rails generate migration AddOrganization
-```
-In db/migrate you should see the new file and inside set this up:
-```
-class AddOrganization < ActiveRecord::Migration[5.0]
-  def change
-    create_table :organizations do |t|
-      t.string :sfdc_id
-      t.integer :user_id
-      t.string :name
-      t.string :username
-
-      t.string :orgname
-      t.string :orgtype
-      t.datetime :orgexpiry
-
-      t.binary :logo
-
-      t.string :token
-      t.string :instanceurl
-      t.string :metadataurl
-      t.string :serviceurl
-      t.string :refreshtoken
-
-      t.string :division
-
-      t.datetime :last_sign_in_date
-      t.datetime :org_created_date
-
-      t.integer :exp_notice_level
-      t.integer :whitelist_id
-      t.integer :organization_type_id
-
-      t.timestamps
-    end
-  end
-end
-```
-Ok our model is now ready. Go to your terminal window and run ```rails db:migrate```
-
-Last things.
--> Create a organization.rb file under /app/models containing:
-```
-class Organization < ApplicationRecord
-    belongs_to :user
-end
-```
--> In user.rb add on ``` has_many :organizations ``` below devise
-
-###### Setting up Omniauth
-
-In config/initializers, add a file called ```salesforce.rb``` that contains:
-```
-module OmniAuth
-  module Strategies
-    class Salesforce
-      def raw_info
-        access_token.options[:mode] = :query
-        access_token.options[:param_name] = :oauth_token
-        u = URI.parse(access_token['id'])
-        u.host = URI.parse(access_token['instance_url']).host
-        @raw_info ||= access_token.post(u.to_s).parsed
-      end
-    end
-
-  end
+class Account < ApplicationRecord
+  self.table_name =  'salesforce.account'
 end
 ```
 
-And another one called ```omniauth.rb``` containing:
+Now let' set up the production database. We need the Database informations and credentials. Go to Overview in you heroku app and click on the Postgres add-on. Then scroll down and click on 'view credentials'.
+
+You should see DB infos as Host, Database, User, Port, Password and so on. We need to set those infos in our database.yml in the rails app.
+
+Go to ```config/database.yml``` and below production set up your database infos found before.
+
+Your ```database.yml``` should look like this:
 ```
-Rails.application.config.middleware.use OmniAuth::Builder do
-  provider :salesforce, ENV['CLIENT_ID'], ENV['CLIENT_SECRET']
-end
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: test-heroku
+
+test:
+  <<: *default
+  database: test-heroku
+
+production:
+  #Set Prod Database here
+  <<: *default
+  database: d4532no0nemblb
+  username: vjftcixvfrallo
+  password: 155a144734d88979739fe2b909d381173dbf0e7cf5b18d74a2195cbd71fb466e
+  host: ec2-54-75-224-100.eu-west-1.compute.amazonaws.com
 ```
 
-Let's set up the callback URI route and handler.
-In config/route.rb add on this:
+Ok we are now ready to push our app into production and check the synchronization.
+
+###### Pushing app to Heroku
+
+Go back to your Heroku application Overview. Click on 'Settings' tab and scroll down to get the heroku git repro of your app.
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_13_00_AM-1503479619348.png)
+
+Copy it.
+
+Then go to your terminal and go to your app directory.
+Then type
 ```
-namespace :auth do
-    match "/salesforce/callback", :to => "session#callback", :via => [:get, :post]
-end
+git init
+git add .
+git commit -m 'DB and heroku connect set up'
+git remote add heroku <the github repro address you copied before>
 ```
-And create the corresponding controller. In app/controller create a new folder auth and inside a ```session_controller.rb``` controller.
 
-Fill the session_controller.rb with this:
+If you try ```git remote -v```, you should see your heroku app git repro url with (fetch) and (push).
+
+Ok now type ```git push heroku master```
+Once done type ```heroku run rake db:migrate```
+
+Ok now let's see if we can find our Org Account in our heroku Postgres DB.
+
+Type ```heroku run rails c```
+Once the command is open type ```Account.count```.
+
+You should see the number of Account present in your Salesforce Org. Accounts have been successfully synchronized to our Heroku Postgres DB.
+
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_21_22_AM-1503480092852.png)
+
+Ok great ! We have set up Heroku Connect and our Heroku Postgres database. But if you really try the app, you will get an error on login.
+
+This is because we only have a connected app with a callback for localhost:3000. We now need to create one for our production app.
+
+###### Create connected app for Heroku
+
+Go to your Salesforce Org and in setup -> apps
+Then scroll down to connected apps and click 'new'
+
+Set your app infos there (replace the heroku app url with yours -> do not forget to set ```/auth/salesforce/callback``` at the end though).
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_28_16_AM-1503480528742.png)
+
+And Save. Note the Client Id and Secret from it as we going to need it.
+
+Go back to your Heroku app Overview and click on 'Settings'. Then click on 'Reveal config var'. Add on your new connected app Client Id and Secret there.
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_48_23_AM-1503481716274.png)
+
+Add one more config var called ```API_VERSION``` and set it up to a value of ```40.0```
+
+Now go back to your terminal window and go to your app root. Then type:
 ```
-class Auth::SessionController < ApplicationController
-	skip_before_filter :verify_authenticity_token
-
-  def callback
-    begin
-      auth = request.env['omniauth.auth']
-      extra = request.env['omniauth.params']['returnURL']
-
-      user = User.find_or_create_by(:email => auth['extra']['email'], :uid => auth['uid'])
-      user.uid = auth['uid']
-      user.save
-
-      o = Organization.find_or_create_by(:sfdc_id => auth['extra']['organization_id'], :user_id => user.id)
-      o.user_id = user.id
-      o.username = auth['extra']['username']
-      o.name = auth['extra']['display_name']
-      o.token = auth['credentials']['token']
-      o.instanceurl = auth['extra']['instance_url']
-      o.refreshtoken = auth['credentials']['refresh_token']
-      o.metadataurl = auth['info']['urls']['metadata'].sub '{version}', '29.0'
-      o.serviceurl = auth['info']['urls']['enterprise'].sub '{version}', '29.0'
-      o.save
-
-      set_session_vars(user, auth)
-      sign_in_and_redirect user
-    rescue Exception => ex
-      p "====== Exception ======"
-      p ex
-    end
-  end
-
-  def set_session_vars(user, auth)
-    session[:user_id]               = user.id
-    session['auth.token']           = auth['credentials']['token']
-    session['auth.refresh_token']   = auth['credentials']['refresh_token']
-    session['auth.instance_url']    = auth['extra']['instance_url']
-    session['auth.picture']         = auth['extra']['photos']['picture']
-    session['auth.user_id']         = auth['extra']['user_id']
-    session['auth.username']        = auth['extra']['username']
-    session['auth.display_name']    = auth['extra']['display_name']
-    session['auth.organization_id'] = auth['extra']['organization_id']
-    session['auth.metadata_url']    = auth['info']['urls']['metadata'].sub '{version}', ENV["API_VERSION"]
-    session['auth.service_url']     = auth['info']['urls']['enterprise'].sub '{version}', ENV["API_VERSION"]
-  end
-
-end
-
+git add .
+git commit -m 'Auth production Client and Secret set up'
+git push heroku master
 ```
-Here is what is happening
 
-On callback from Salesforce Authentication, we use the logged-in user and org info to set session variables and 'sign_in' the user (setting a current_user devise variable) that we create if no email + uid match found.
+Go for a coffee, letting time for the connected app to settle.
 
-This, added up to the Organization insert allows us to keep those info in our database for future use. And in a session to be able to get those info in our welcome controller.
+Then test your Heroku application. You should be prompted to allow your connected app to access your infos.
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_51_13_AM-1503481911863.png)
 
-In app/controller/welcome_controller.rb :
-```
-class WelcomeController < ApplicationController
-  def index
-    p "Welcome Index"
-    if current_user.nil?
-      p "Current User not set"
-      redirect_to '/auth/salesforce', :id => 'sign_in' and return
-    end
+And you should then see your application loading properly.
 
-    p session
-    p current_user  
-  end
-end  
-```
-When reaching the index, we look into current_user devise variable. If nil (not signed_in) we redirect to omniauth salesforce login that will handle the Authorization and Authentication process and redirect us to our callback above that will then sign in the user and set the sesssion and database records.
+Well... What if you look into the console ?
+![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_11_02_39_AM-1503482568892.png)
 
->Wow ! that is a lot of information to process
+You can see that our Websocket is not connecting. This is because, once again it has been configured to work on localhost only.
 
-I know ! It's actually not so complicated and overwhelming, it's just that it's using several libraries to handle this all Salesforce Authentication process.
-
-***Let's test all this***
-
-In your terminal, go to your root directory and run ```foreman start -p 3000```.
-Then go to your browser and ```localhost:3000```
-
-You should be following the salesforce authentication process and get to your app welcome index page.
-
-If you look into your terminal, you should see session and current_user information.
-
-> Congratulations ! You have now an access token to use Salesforce api in your org :)
-
-###### Passing Org and User infos to Angular
-
-Change welcome_controller.rb as follow:
-```
-class WelcomeController < ApplicationController
-  def index
-    p "Welcome Index"
-    if current_user.nil?
-      p "Current User not set"
-      redirect_to '/auth/salesforce', :id => 'sign_in' and return
-    end
-
-    @organization = Organization.where(:sfdc_id => session['auth.organization_id']).first if session['auth.organization_id']
-    @current_user = current_user
-
-    p @organization
-    p @current_user
-
-  end
-end
-```
-Refresh your browser (localhost:3000). You should now see your organization and user infos in the terminal window.
-
-Now go to your /app/view/welcome/index.html.erb
-Inside ```<script>``` and before ```var package = ...```
-Set a context variable as follow:
-```
-var context = {
-      user: JSON.parse('<%= raw @current_user.id %>'),
-      organization: JSON.parse('<%= raw @organization.id %>'),
-      instanceUrl: '<%= @organization.instanceurl %>'
-    };
-```
-Now go to /public/app/app.component.ts and add this:
-```
-import {Component} from '@angular/core'
-
-declare let ActionCable:any
-declare let context:any
-```
-Then inside the constructor:
-```
-console.log(context);
-```
-Go to your browser, localhost:3000 and inspect the page.
-You should now see the context object print in the console containing your context (user id and organization id).
-
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/May/Screen_Shot_2017_05_09_at_12_50_42_PM-1494330676701.png)
-
-> Now that you have the context, you can use it by sending it in the request you make to Rails. Rails will then be able to retrieve the corresponding db record and get the token to use Restforce library to play with your instance data.
-
-###### Restforce Example - Getting a list of Account
-
-Ok let's modify our doStuff method in /public/app/app.component.ts to add context to data sent to backend:
-```
-doStuff: function(data){    
-    data.context = context;
-    console.log('Doing stuff', data);
-    this.perform('doStuff', data);
-}
-```
-Now go to your backend /app/channels/my_channel.rb and set the doStuff action as follow:
-```
-def doStuff(data)
- p "Doing stuff"
- p data["context"]
-
-
- ActionCable.server.broadcast "MyStream",
-      { :method => 'doStuff', :status => 'success',
-        :data => { :message => 'Stuff done !' } }
-end
-```
-If you reload your localhost:3000, you will see the context being printed in the terminal.
-
-Now let's use it to set up Restforce and query our Accounts.
-Change the method again as follow:
-```
-def doStuff(data)
-    p "Doing stuff"
-    begin
-    o =  Organization.find(data["context"]["organization"])
-    p o
-
-    sClient = Restforce.new :oauth_token => o.token,
-        :refresh_token => o.refreshtoken,
-        :instance_url => o.instanceurl,
-        :api_version => ENV['API_VERSION'], :client_id => ENV['CLIENT_ID'], :client_secret => ENV['CLIENT_SECRET']
-
-    accounts = sClient.query("Select Id, Name from Account Limit 10")
-
-    rescue Exception => e
-      ActionCable.server.broadcast "MyStream",
-        { :method => 'doStuff', :status => 'error', :data => { :message => e.message } }
-    end
-    ActionCable.server.broadcast "MyStream",
-      { :method => 'doStuff', :status => 'success', :data => { :accounts => accounts } }
-  end
-```
-Re-run you localhost and click the doStuff button, you should now see something like that in your console:
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/May/Screen_Shot_2017_05_09_at_1_06_55_PM-1494331634414.png)
-
-###### Display the Account list on the page using Angular
-
-So now that we have the data, we need to display it.
-Let's start by changing the app.component.ts as follow
-```
-import {Component} from '@angular/core'
-
-declare let ActionCable:any
-declare let context:any
-
-@Component({
-  selector: 'app',
-  templateUrl: '/app/app.component.html'
-})
-
-export class AppComponent{
-  App: any = {};
-  accounts:any;
-
-  constructor(){
-    console.log(context);
-    let self = this;
-
-    this.App.cable = ActionCable.createConsumer("ws://localhost:3000/cable");
-    this.App.MyChannel = this.App.cable.subscriptions.create({channel: "MyChannel", context: {} }, {
-      // ActionCable callbacks
-      connected: function() {
-        console.log("connected");
-      },
-      disconnected: function() {
-        console.log("disconnected");
-      },
-      rejected: function() {
-        console.log("rejected");
-      },
-      received: function(data) {
-        console.log('Data Received from backend', data);
-        if(data && data.accounts){
-          self.accounts = data.accounts;
-        }
-      },
-      doStuff: function(data){
-        console.log('Doing stuff', data);
-        data.context = context;
-        this.perform('doStuff', data);
-      }
-    });
-  }
-
-}
-```
-What changed ? **2 things**:
-1. We check if data and data,accounts on data received and if exists, we set the added 'accounts' property to thie value.
-
-2.```let self = this;``` Because the 'receive' function is inside the App.cable.subscription.create, the 'this' there does not point to our component class anymore. Therefore we make sure to set the component reference to a different variable before so we can use it then.
-
-Now we just need to set the list in the app.component.html as follow:
-```
-<header-component></header-component>
-<div class="slds-grid slds-wrap">
-  <div class="slds-p-around--medium">
-    <button class="slds-button slds-button--destructive slds-m-right--small"
-            (click)="App.MyChannel.doStuff({ data: 'Just a string' })">Do Stuff</button>
-  </div>
-  <div class="slds-p-horizontal--small slds-size--1-of-1">
-    <ul class="slds-has-dividers--around-space" *ngIf="accounts">
-      <li *ngFor="let a of accounts" class="slds-item">{{ a.Name }}</li>
-    </ul>
-  </div>
-</div>
-```
-Restart your server and reload localhost:3000. Click on the doStuff button and you should see something like that:
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/May/Screen_Shot_2017_05_09_at_1_18_47_PM-1494332340870.png)
-
-> You now have set up Salesforce data access from your Rails5 / Angular4 app !
-
-In the next post, I'll show how to set up Heroku to get this all working in the cloud ! ;)
-
-Meanwhile, you can play around Restforce capability to enhance your app. [Library link](https://github.com/ejholmes/restforce)
-
- #chill
+###### Setting Up Redis Production Websocket
