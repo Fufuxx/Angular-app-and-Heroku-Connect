@@ -7,15 +7,8 @@ class MyChannel < ApplicationCable::Channel
   def doStuff(data)
     p "Doing stuff"
     begin
-    o =  Organization.find(data["context"]["organization"])
-    p o
 
-    sClient = Restforce.new :oauth_token => o.token,
-        :refresh_token => o.refreshtoken,
-        :instance_url => o.instanceurl,
-        :api_version => ENV['API_VERSION'], :client_id => ENV['CLIENT_ID'], :client_secret => ENV['CLIENT_SECRET']
-
-    accounts = sClient.query("Select Id, Name from Account Limit 10")
+    accounts = Account.all
 
     rescue Exception => e
       ActionCable.server.broadcast "MyStream",
