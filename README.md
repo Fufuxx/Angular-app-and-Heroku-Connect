@@ -69,8 +69,6 @@ Open up Postico and if you do not have localhost set up yet, follow the image in
 
 Once you have done that, simply click connect. On the top menu bar click on localhost. You should see all the Databases there. Click the '+ Database' on the bottom of the app screen and type test-heroku.
 
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_9_43_06_AM-1503477808975.png)
-
 Done !
 
 Now let's try the app.
@@ -144,10 +142,7 @@ test:
 production:
   #Set Prod Database here
   <<: *default
-  database: d4532no0nemblb
-  username: vjftcixvfrallo
-  password: 155a144734d88979739fe2b909d381173dbf0e7cf5b18d74a2195cbd71fb466e
-  host: ec2-54-75-224-100.eu-west-1.compute.amazonaws.com
+  Set Infos here
 ```
 
 Ok we are now ready to push our app into production and check the synchronization.
@@ -155,7 +150,6 @@ Ok we are now ready to push our app into production and check the synchronizatio
 ###### Pushing app to Heroku
 
 Go back to your Heroku application Overview. Click on 'Settings' tab and scroll down to get the heroku git repro of your app.
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_13_00_AM-1503479619348.png)
 
 Copy it.
 
@@ -197,7 +191,6 @@ Set your app infos there (replace the heroku app url with yours -> do not forget
 And Save. Note the Client Id and Secret from it as we going to need it.
 
 Go back to your Heroku app Overview and click on 'Settings'. Then click on 'Reveal config var'. Add on your new connected app Client Id and Secret there.
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_48_23_AM-1503481716274.png)
 
 Add one more config var called ```API_VERSION``` and set it up to a value of ```40.0```
 
@@ -211,7 +204,6 @@ git push heroku master
 Go for a coffee, letting time for the connected app to settle.
 
 Then test your Heroku application. You should be prompted to allow your connected app to access your infos.
-![](https://sdotools-q-labs.s3.amazonaws.com/2017/Aug/Screen_Shot_2017_08_23_at_10_51_13_AM-1503481911863.png)
 
 And you should then see your application loading properly.
 
